@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
+
 
 enum Role {
   SUPER_ADMIN
@@ -92,19 +93,6 @@ model Doctor {
   @@map("doctors")
 }
 
-model Unit {
-  id           String        @id @default(uuid())
-  name         String
-  installation String
-  room         String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  claims       BPJSClaim[]
-  actions      MedicalAction[]
-
-  @@map("units")
-}
-
 model Tariff {
   id           String   @id @default(uuid())
   name         String
@@ -124,8 +112,6 @@ model MedicalAction {
   claim           BPJSClaim? @relation(fields: [claimId], references: [id])
   doctorId        String
   doctor          Doctor   @relation(fields: [doctorId], references: [id])
-  unitId          String
-  unit            Unit     @relation(fields: [unitId], references: [id])
   actionType      String
   category        String?
   tariff          Decimal  @db.Decimal(18, 2)
@@ -151,13 +137,21 @@ model BPJSClaim {
   netRevenue      Decimal  @db.Decimal(18, 2)
   medicalPool     Decimal  @db.Decimal(18, 2)
   actionDate      DateTime
-  unitId          String
-  unit            Unit     @relation(fields: [unitId], references: [id])
   actions         MedicalAction[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@map("bpjs_claims")
+}
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
 }
 
 model RemunerationScore {

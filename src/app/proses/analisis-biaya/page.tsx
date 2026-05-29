@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import dynamic from "next/dynamic";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ChartWrapper } from "@/components/ui/chart-wrapper";
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,6 @@ import {
   getAvailablePeriods,
 } from "./actions";
 import { toast } from "sonner";
-
-// Dynamic import to avoid SSR issues with ApexCharts
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 interface SummaryData {
   totalKlaim: number;
@@ -113,8 +110,8 @@ export default function AnalisisBiayaPage() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
 
-  const barChartOptions = {
-    chart: { type: "bar" as const, toolbar: { show: false } },
+  const barChartOptions = useMemo(() => ({
+    chart: { type: "bar" as const, toolbar: { show: false }, animations: { enabled: false } },
     plotOptions: { bar: { horizontal: false, columnWidth: "55%", borderRadius: 4 } },
     dataLabels: { enabled: false },
     xaxis: {
@@ -132,12 +129,12 @@ export default function AnalisisBiayaPage() {
     tooltip: {
       y: { formatter: (val: number) => formatCurrency(val) },
     },
-  };
+  }), [chartData?.categories]);
 
-  const barChartSeries = [
+  const barChartSeries = useMemo(() => [
     { name: "Nilai Klaim", data: chartData?.klaimSeries || [] },
     { name: "Total Biaya", data: chartData?.biayaSeries || [] },
-  ];
+  ], [chartData?.klaimSeries, chartData?.biayaSeries]);
 
   return (
     <DashboardLayout>
@@ -211,7 +208,7 @@ export default function AnalisisBiayaPage() {
             {chartData && chartData.categories.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <h2 className="text-base font-bold text-slate-900 mb-4">Klaim vs Biaya per Spesialisasi</h2>
-                <ReactApexChart
+                <ChartWrapper
                   options={barChartOptions}
                   series={barChartSeries}
                   type="bar"

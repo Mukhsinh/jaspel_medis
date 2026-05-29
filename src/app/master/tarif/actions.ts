@@ -48,9 +48,13 @@ export async function deleteTariff(id: string) {
     return { success: true };
 }
 
-export async function importTariffs(fileData: number[]) {
+export async function importTariffs(formData: FormData) {
     try {
-        const workbook = XLSX.read(Buffer.from(fileData), { type: "buffer" });
+        const file = formData.get("file") as File;
+        if (!file) return { success: false, error: "Tidak ada file yang diunggah" };
+
+        const bytes = await file.arrayBuffer();
+        const workbook = XLSX.read(bytes, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
@@ -116,7 +120,7 @@ export async function importTariffs(fileData: number[]) {
             .from("tariffs")
             .upsert(payload, { onConflict: "code" });
 
-        if (error) return { success: false, error: error.message };
+        if (error) return { success: false, error: "Database error: " + error.message };
 
         revalidatePath("/master/tarif");
         return { success: true, count: payload.length };

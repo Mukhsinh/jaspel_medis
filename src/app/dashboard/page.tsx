@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import Link from "next/link";
-
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { ChartWrapper } from "@/components/ui/chart-wrapper";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -19,12 +17,6 @@ import {
 import DashboardLayout from "@/components/layout/dashboard-layout";
 
 export default function DashboardPage() {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
     const statCards = [
         {
             title: "Total Klaim BPJS",
@@ -64,11 +56,12 @@ export default function DashboardPage() {
         },
     ];
 
-    const chartOptions: any = {
+    const chartOptions = useMemo(() => ({
         chart: {
             type: 'area',
             toolbar: { show: false },
-            zoom: { enabled: false }
+            zoom: { enabled: false },
+            animations: { enabled: false }
         },
         colors: ['#2563eb', '#10b981'],
         dataLabels: { enabled: false },
@@ -85,7 +78,8 @@ export default function DashboardPage() {
         },
         grid: {
             borderColor: '#f1f5f9',
-            strokeDashArray: 4
+            strokeDashArray: 4,
+            padding: { left: 0, right: 0 }
         },
         fill: {
             type: 'gradient',
@@ -96,9 +90,9 @@ export default function DashboardPage() {
                 stops: [20, 100, 100, 100]
             }
         }
-    };
+    }), []);
 
-    const chartSeries = [
+    const chartSeries = useMemo(() => [
         {
             name: 'Klaim BPJS',
             data: [850000000, 920000000, 880000000, 1100000000, 1250400000]
@@ -107,7 +101,8 @@ export default function DashboardPage() {
             name: 'Biaya Sarana',
             data: [350000000, 380000000, 360000000, 420000000, 480000000]
         }
-    ];
+    ], []);
+
 
     return (
         <DashboardLayout>
@@ -178,50 +173,46 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="h-[280px] p-4">
-                            {mounted && (
-                                <ReactApexChart
-                                    options={{
-                                        ...chartOptions,
-                                        grid: { ...chartOptions.grid, padding: { left: 0, right: 0 } }
-                                    }}
-                                    series={chartSeries}
-                                    type="area"
-                                    height="100%"
-                                />
-                            )}
+                            <ChartWrapper
+                                options={chartOptions}
+                                series={chartSeries}
+                                type="area"
+                                height="100%"
+                            />
                         </div>
                     </div>
 
                     {/* Side Rankings */}
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-                        <h3 className="text-base font-bold text-slate-900 mb-1">Unit Paling Produktif</h3>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">Dokter Paling Produktif</h3>
                         <p className="text-sm text-slate-400 font-medium mb-5">Berdasarkan volume tindakan medis.</p>
                         <div className="space-y-5">
                             {[
-                                { name: "Poli Jantung", value: 450, color: "bg-blue-600" },
-                                { name: "Rawat Inap Paviliun", value: 380, color: "bg-emerald-500" },
-                                { name: "Instalasi Bedah", value: 310, color: "bg-purple-500" },
-                                { name: "Radiologi", value: 290, color: "bg-orange-500" },
-                            ].map((unit, i) => (
+                                { name: "dr. Ahmad Syarif, Sp.JP", value: 450, color: "bg-blue-600" },
+                                { name: "dr. Siti Aminah, Sp.A", value: 380, color: "bg-emerald-500" },
+                                { name: "dr. Budi Santoso, Sp.OT", value: 310, color: "bg-purple-500" },
+                                { name: "dr. Diana Putri, Sp.PD", value: 290, color: "bg-orange-500" },
+                                { name: "dr. Eko Prasetyo, Sp.An", value: 245, color: "bg-rose-500" },
+                            ].map((doc, i) => (
                                 <div key={i} className="space-y-1.5">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-semibold text-slate-700">{unit.name}</span>
-                                        <span className="text-sm font-bold text-slate-900">{unit.value}</span>
+                                        <span className="text-sm font-semibold text-slate-700 truncate max-w-[180px]">{doc.name}</span>
+                                        <span className="text-sm font-bold text-slate-900">{doc.value}</span>
                                     </div>
                                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full ${unit.color} transition-all duration-700`}
-                                            style={{ width: `${(unit.value / 450) * 100}%` }}
+                                            className={`h-full rounded-full ${doc.color} transition-all duration-700`}
+                                            style={{ width: `${(doc.value / 450) * 100}%` }}
                                         />
                                     </div>
                                 </div>
                             ))}
                         </div>
                         <Link
-                            href="/laporan"
+                            href="/master/dokter"
                             className="flex items-center justify-center gap-1.5 w-full mt-6 py-2 bg-slate-50 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors border border-slate-100"
                         >
-                            Lihat Semua Unit <TrendingUp className="h-3 w-3" />
+                            Lihat Semua Dokter <TrendingUp className="h-3 w-3" />
                         </Link>
                     </div>
                 </div>

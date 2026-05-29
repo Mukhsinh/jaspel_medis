@@ -198,14 +198,18 @@ export async function downloadAssessmentTemplate(periode: string) {
 
 // ─── import assessments ──────────────────────────────────────────────────────
 
-export async function importAssessments(fileBuffer: Buffer, periode: string) {
+export async function importAssessments(formData: FormData, periode: string) {
   try {
-    const wb = XLSX.read(fileBuffer, { type: "buffer" });
+    const file = formData.get("file") as File;
+    if (!file) return { success: false, error: "Tidak ada file" };
+
+    const arrayBuffer = await file.arrayBuffer();
+    const wb = XLSX.read(arrayBuffer, { type: "buffer" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rawRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
     if (rawRows.length < 2) return { success: false, error: "File tidak berisi data" };
 
-    const headers: string[] = rawRows[0].map((h: any) => String(h).trim());
+    const headers: string[] = rawRows[0].map((h: any) => String(h || "").trim());
     const dataRows = rawRows.slice(1).filter(r => r.some(c => c !== ""));
 
     const colIdx = {
@@ -217,18 +221,21 @@ export async function importAssessments(fileBuffer: Buffer, periode: string) {
     };
 
     if (colIdx.doctorId === -1 || colIdx.tarifWithId === -1 || colIdx.volume === -1) {
-      return { success: false, error: "Format template tidak sesuai. Kolom doctor_id, Nama Tarif [ID], dan Volume wajib ada." };
+      return { success: false, error: "Format template salah. Pastikan kolom doctor_id, Nama Tarif [ID], dan Volume ada." };
     }
+
+    const { startDate } = await getPeriodDates(periode);
 
     // Fetch all aktivitas indeks categories for matching
     const { data: indeksList } = await supabaseAdmin
       .from("indeks_pengukuran").select("id, tarif_kategori").eq("tipe_skema", "aktivitas");
 
-    const { startDate } = await getPeriodDates(periode);
     let successCount = 0;
     const errors: string[] = [];
 
-    // Process each row
+    // Group rows by doctor to potentially clear existing data if needed, 
+    // but here we just insert as per user request to have detailed patient logs.
+
     for (let i = 0; i < dataRows.length; i++) {
       const row = dataRows[i];
       const rowNum = i + 2;
@@ -242,39 +249,46 @@ export async function importAssessments(fileBuffer: Buffer, periode: string) {
       if (!doctorId || !tarifWithId) continue;
 
       const volume = parseFloat(String(rawVol).replace(/[^0-9.]/g, ""));
-      if (isNaN(volume) || volume <= 0) continue;
-
-      // Extract tarifId from "Name [uuid]"
-      const match = tarifWithId.match(/\[([a-f0-9-]{36})\]$/);
-      if (!match) {
-        errors.push(`Baris ${rowNum}: Format Nama Tarif [ID] tidak valid`);
+      if (isNaN(volume) || volume <= 0) {
+        if (rawVol !== "") errors.push(`Baris ${rowNum}: Volume tidak valid`);
         continue;
       }
-      const tarifId = match[1];
+
+      // Extract tarifId from "Name [uuid]" or just use the ID if only ID is provided
+      let tarifId = "";
+      const match = tarifWithId.match(/\[([a-f0-9-]{36})\]$/);
+      if (match) {
+        tarifId = match[1];
+      } else if (tarifWithId.length === 36) {
+        tarifId = tarifWithId;
+      } else {
+        errors.push(`Baris ${rowNum}: Format Nama Tarif [ID] tidak valid. Gunakan kolom referensi.`);
+        continue;
+      }
 
       // Fetch tarif details
       const { data: tarif } = await supabaseAdmin
         .from("tariffs").select("category, jasa_pelayanan_medis").eq("id", tarifId).single();
 
       if (!tarif) {
-        errors.push(`Baris ${rowNum}: Tarif dengan ID ${tarifId} tidak ditemukan`);
+        errors.push(`Baris ${rowNum}: Tarif tidak ditemukan`);
         continue;
       }
 
       const nilai = volume * parseFloat(tarif.jasa_pelayanan_medis || 0);
 
-      // Find matching indeks_id
+      // Find matching indeks_id from configuration
       const matchingIndeks = (indeksList || []).find((idx: any) =>
         (idx.tarif_kategori || []).includes(tarif.category)
       );
       const indeksId = matchingIndeks?.id;
 
       if (!indeksId) {
-        errors.push(`Baris ${rowNum}: Tidak ada indeks untuk kategori tarif ${tarif.category}`);
+        errors.push(`Baris ${rowNum}: Kategori tarif ${tarif.category} belum dikonfigurasi ke indeks mana pun.`);
         continue;
       }
 
-      const { error } = await supabaseAdmin.from("penilaian_dokter").insert({
+      const { error: insErr } = await supabaseAdmin.from("penilaian_dokter").insert({
         periode_layanan: startDate,
         doctor_id: doctorId,
         indeks_id: indeksId,
@@ -285,16 +299,22 @@ export async function importAssessments(fileBuffer: Buffer, periode: string) {
         volume,
       });
 
-      if (error) errors.push(`Baris ${rowNum}: ${error.message}`);
+      if (insErr) errors.push(`Baris ${rowNum}: ${insErr.message}`);
       else successCount++;
     }
 
     await supabaseAdmin.from("audit_log_proses_jaspel").insert({
-      action: "IMPORT_DETAIL", table_name: "penilaian_dokter",
-      new_data: { periode, successCount, totalRows: dataRows.length },
+      action: "IMPORT_DETAIL",
+      table_name: "penilaian_dokter",
+      new_data: { periode, successCount, total: dataRows.length, errors: errors.length }
     });
 
-    return { success: true, count: successCount, total: dataRows.length, errors: errors.length ? errors : undefined };
+    return {
+      success: true,
+      count: successCount,
+      total: dataRows.length,
+      errors: errors.length ? errors.slice(0, 10) : undefined // Only show first 10 errors
+    };
   } catch (e: any) {
     console.error("Import Error:", e);
     return { success: false, error: e.message };

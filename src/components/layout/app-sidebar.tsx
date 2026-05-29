@@ -50,7 +50,6 @@ const mainNav = [
 ]
 
 const masterNav = [
-    { title: "Unit Pelayanan", url: "/master/unit", icon: Building2 },
     { title: "Dokter", url: "/master/dokter", icon: Stethoscope },
     { title: "Tarif Tindakan", url: "/master/tarif", icon: Activity },
 ]
@@ -116,21 +115,34 @@ function NavItem({ item, pathname }: { item: NavEntry; pathname: string }) {
     )
 }
 
+import { useBranding } from "@/hooks/use-branding"
+
+
 export function AppSidebar() {
     const pathname = usePathname()
+    const { hospitalName, govtName, logoUrl } = useBranding()
 
     return (
         <Sidebar collapsible="icon" className="border-r border-slate-200/60">
             {/* Logo Header */}
             <SidebarHeader className="px-4 py-5 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                    <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30">
-                        <Activity className="h-5 w-5 text-white" />
+                    <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-lg shadow-blue-500/30 overflow-hidden">
+                        {logoUrl ? (
+                            <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
+                        ) : (
+                            <Activity className="h-5 w-5 text-white" />
+                        )}
                         <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-white" />
                     </div>
                     <div className="flex flex-col leading-none">
-                        <span className="font-black text-[15px] tracking-tight text-slate-900">
-                            Jaspel<span className="text-blue-600">Medis</span>
+                        {govtName && (
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tight mb-0.5 truncate max-w-[150px]">
+                                {govtName}
+                            </span>
+                        )}
+                        <span className="font-black text-[14px] tracking-tight text-slate-900 line-clamp-1">
+                            {hospitalName || "Jaspel Medis"}
                         </span>
                         <span className="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-0.5">
                             Enterprise v2.0

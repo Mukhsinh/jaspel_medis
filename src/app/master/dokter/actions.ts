@@ -108,9 +108,13 @@ export async function downloadDoctorTemplate() {
     }
 }
 
-export async function importDoctors(fileData: number[]) {
+export async function importDoctors(formData: FormData) {
     try {
-        const workbook = XLSX.read(Buffer.from(fileData), { type: "buffer" });
+        const file = formData.get("file") as File;
+        if (!file) return { success: false, error: "Tidak ada file yang diunggah" };
+
+        const bytes = await file.arrayBuffer();
+        const workbook = XLSX.read(bytes, { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
@@ -142,22 +146,31 @@ export async function importDoctors(fileData: number[]) {
         }
 
         const payload = dataRows.map((r, i) => {
-            const getField = (key: string) => colMap[key] !== -1 ? r[colMap[key]] : null;
+            const getRaw = (key: string) => colMap[key] !== -1 ? r[colMap[key]] : null;
+            const getString = (key: string) => {
+                const val = getRaw(key);
+                return val ? String(val).trim() : null;
+            };
+
+            const nik = getString("nik");
+            const name = getString("name");
+
+            if (!nik || !name) return null;
 
             return {
-                name: String(getField("name") || ""),
-                nip: getField("nip") ? String(getField("nip")) : null,
-                nik: String(getField("nik") || ""),
-                specialization: String(getField("specialization") || "Umum"),
-                type: String(getField("type") || "SPESIALIS").toUpperCase(),
-                status: String(getField("status") || "PNS").toUpperCase(),
-                ptkp: String(getField("ptkp") || "TK/0"),
-                bank: getField("bank") ? String(getField("bank")) : null,
-                account_number: getField("account_number") ? String(getField("account_number")) : null,
-                bank_account_name: getField("bank_account_name") ? String(getField("bank_account_name")) : null,
+                name: name,
+                nip: getString("nip"),
+                nik: nik,
+                specialization: getString("specialization") || "Umum",
+                type: (getString("type") || "SPESIALIS").toUpperCase(),
+                status: (getString("status") || "PNS").toUpperCase(),
+                ptkp: (getString("ptkp") || "TK/0").toUpperCase(),
+                bank: getString("bank"),
+                account_number: getString("account_number"),
+                bank_account_name: getString("bank_account_name"),
                 is_active: true,
             };
-        }).filter(r => r.name && r.nik);
+        }).filter((r): r is any => r !== null);
 
         if (payload.length === 0) return { success: false, error: "Tidak ada data valid untuk di-import" };
 
@@ -165,7 +178,7 @@ export async function importDoctors(fileData: number[]) {
             .from("doctors")
             .upsert(payload, { onConflict: "nik" });
 
-        if (error) return { success: false, error: error.message };
+        if (error) return { success: false, error: "Database error: " + error.message };
 
         revalidatePath("/master/dokter");
         return { success: true, count: payload.length };

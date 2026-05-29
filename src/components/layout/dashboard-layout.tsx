@@ -6,11 +6,11 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "./app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Bell, Search } from "lucide-react";
+import { useBranding } from "@/hooks/use-branding";
 
 const routeLabels: Record<string, string> = {
     dashboard: "Dashboard",
     master: "Data Master",
-    unit: "Unit Pelayanan",
     dokter: "Dokter",
     tarif: "Tarif Tindakan",
     proses: "Proses Jaspel",
@@ -66,6 +66,8 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
+    const { hospitalName, footerText } = useBranding()
+
     return (
         <SidebarProvider>
             <AppSidebar />
@@ -88,8 +90,8 @@ export default function DashboardLayout({
                             <kbd className="ml-4 text-[9px] opacity-60">⌘K</kbd>
                         </button>
                         {/* Hospital info */}
-                        <div className="hidden lg:flex flex-col items-end leading-tight px-3 border-l border-slate-100">
-                            <span className="text-xs font-bold text-slate-800">RSUD Dr. Soegiri</span>
+                        <div className="hidden lg:flex flex-col items-end leading-tight px-3 border-l border-slate-100 max-w-[200px]">
+                            <span className="text-xs font-bold text-slate-800 truncate w-full text-right">{hospitalName || "RSUD Dr. Soegiri"}</span>
                             <div className="flex items-center gap-1 mt-0.5">
                                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                 <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Sistem Aktif</span>
@@ -107,6 +109,20 @@ export default function DashboardLayout({
                 <main className="flex-1 p-6 md:p-8 space-y-6">
                     {children}
                 </main>
+
+                {/* Footer */}
+                <footer className="px-8 py-6 border-t border-slate-200/50 bg-white/50 backdrop-blur-sm">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <p className="text-xs font-medium text-slate-400">
+                            {footerText || "© 2026 RSUD Dr. Soegiri — Sistem Jasa Pelayanan Medis"}
+                        </p>
+                        <div className="flex items-center gap-6">
+                            <Link href="#" className="text-[10px] font-bold text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Bantuan</Link>
+                            <Link href="#" className="text-[10px] font-bold text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Privasi</Link>
+                            <Link href="#" className="text-[10px] font-bold text-slate-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Ketentuan</Link>
+                        </div>
+                    </div>
+                </footer>
             </SidebarInset>
         </SidebarProvider>
     );

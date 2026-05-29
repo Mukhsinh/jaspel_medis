@@ -136,9 +136,9 @@ export default function DoctorMasterPage() {
         if (!importFile) return;
         setImporting(true);
         try {
-            const buffer = await importFile.arrayBuffer();
-            const data = Array.from(new Uint8Array(buffer));
-            const r = await importDoctors(data);
+            const formData = new FormData();
+            formData.append("file", importFile);
+            const r = await importDoctors(formData);
             if (r.success) {
                 toast.success(`Berhasil mengimport ${r.count} data dokter`);
                 setImportOpen(false);
@@ -197,77 +197,79 @@ export default function DoctorMasterPage() {
                                 <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
                             </div>
                         ) : (
-                            <Table>
-                                <TableHeader className="bg-slate-50 border-b border-slate-100">
-                                    <TableRow>
-                                        <TableHead className="px-6 py-4 font-bold text-slate-600">Nama Dokter</TableHead>
-                                        <TableHead className="font-bold text-slate-600">NIP / NIK</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Spesialisasi</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Status</TableHead>
-                                        <TableHead className="font-bold text-slate-600">PTKP</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Bank</TableHead>
-                                        <TableHead className="text-center font-bold text-slate-600">Aktif</TableHead>
-                                        <TableHead className="text-center px-6 font-bold text-slate-600">Aksi</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filtered.map(doc => (
-                                        <TableRow key={doc.id} className="hover:bg-blue-50/30 border-b border-slate-50 bg-white">
-                                            <TableCell className="px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
-                                                        <UserRound className="h-4 w-4 text-blue-600" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-slate-900">{doc.name}</p>
-                                                        <p className="text-[10px] text-blue-500 font-bold uppercase">{typeLabel(doc.type)}</p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <p className="font-mono text-xs font-bold text-slate-700">{doc.nip || "—"}</p>
-                                                <p className="font-mono text-[10px] text-slate-400">NIK: {doc.nik}</p>
-                                            </TableCell>
-                                            <TableCell className="text-sm font-bold text-slate-700">{doc.specialization}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-bold text-[10px]">
-                                                    {statusLabel(doc.status)}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="text-xs font-mono font-bold text-slate-600">{doc.ptkp}</span>
-                                            </TableCell>
-                                            <TableCell>
-                                                {doc.bank ? (
-                                                    <div>
-                                                        <p className="text-xs font-bold text-slate-700">{doc.bank}</p>
-                                                        <p className="text-[10px] text-slate-400 font-mono">{doc.accountNumber}</p>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-slate-300">—</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                {doc.isActive
-                                                    ? <div className="h-2 w-2 rounded-full bg-emerald-500 mx-auto" />
-                                                    : <div className="h-2 w-2 rounded-full bg-slate-300 mx-auto" />}
-                                            </TableCell>
-                                            <TableCell className="text-center px-6">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button onClick={() => openEdit(doc)}
-                                                        className="h-8 w-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors">
-                                                        <Edit className="h-3.5 w-3.5 text-blue-600" />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(doc.id)}
-                                                        className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
-                                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                                    </button>
-                                                </div>
-                                            </TableCell>
+                            <div className="table-container">
+                                <Table>
+                                    <TableHeader className="bg-slate-50 border-b border-slate-100">
+                                        <TableRow>
+                                            <TableHead className="px-6 py-4 font-bold text-slate-600">Nama Dokter</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">NIP / NIK</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Spesialisasi</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Status</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">PTKP</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Bank</TableHead>
+                                            <TableHead className="text-center font-bold text-slate-600">Aktif</TableHead>
+                                            <TableHead className="text-center px-6 font-bold text-slate-600">Aksi</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filtered.map(doc => (
+                                            <TableRow key={doc.id} className="hover:bg-blue-50/30 border-b border-slate-50 bg-white">
+                                                <TableCell className="px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-9 w-9 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0">
+                                                            <UserRound className="h-4 w-4 text-blue-600" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-bold text-slate-900 leading-tight">{doc.name}</p>
+                                                            <p className="text-[10px] text-blue-500 font-bold uppercase">{typeLabel(doc.type)}</p>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="hide-on-mobile">
+                                                    <p className="font-mono text-xs font-bold text-slate-700">{doc.nip || "—"}</p>
+                                                    <p className="font-mono text-[10px] text-slate-400">NIK: {doc.nik}</p>
+                                                </TableCell>
+                                                <TableCell className="text-sm font-bold text-slate-700 hide-on-mobile">{doc.specialization}</TableCell>
+                                                <TableCell className="hide-on-mobile">
+                                                    <Badge variant="outline" className="bg-slate-50 text-slate-600 border-slate-200 font-bold text-[10px]">
+                                                        {statusLabel(doc.status)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="hide-on-mobile">
+                                                    <span className="text-xs font-mono font-bold text-slate-600">{doc.ptkp}</span>
+                                                </TableCell>
+                                                <TableCell className="hide-on-mobile">
+                                                    {doc.bank ? (
+                                                        <div>
+                                                            <p className="text-xs font-bold text-slate-700">{doc.bank}</p>
+                                                            <p className="text-[10px] text-slate-400 font-mono">{doc.accountNumber}</p>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-300">—</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {doc.isActive
+                                                        ? <div className="h-2 w-2 rounded-full bg-emerald-500 mx-auto" />
+                                                        : <div className="h-2 w-2 rounded-full bg-slate-300 mx-auto" />}
+                                                </TableCell>
+                                                <TableCell className="text-center px-6">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => openEdit(doc)}
+                                                            className="h-8 w-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center transition-colors">
+                                                            <Edit className="h-3.5 w-3.5 text-blue-600" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(doc.id)}
+                                                            className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
+                                                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                                        </button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         )}
                         {!loading && filtered.length === 0 && (
                             <div className="flex flex-col items-center justify-center p-20 text-center bg-white">

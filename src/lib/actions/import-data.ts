@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import * as XLSX from "xlsx";
 import { revalidatePath } from "next/cache";
 
@@ -24,54 +24,80 @@ export async function importSepData(base64Data: string) {
 
             const patientName = String(row['Nama Pasien'] || row['nama'] || "");
             const rmNo = String(row['No. RM'] || row['rm'] || "");
-            const admissionDate = new Date(row['Tgl. Masuk'] || row['tgl_masuk'] || Date.now());
-            const dischargeDate = row['Tgl. Keluar'] ? new Date(row['Tgl. Keluar']) : null;
+            const admissionDate = new Date(row['Tgl. Masuk'] || row['tgl_masuk'] || Date.now()).toISOString();
+            const dischargeDate = row['Tgl. Keluar'] ? new Date(row['Tgl. Keluar']).toISOString() : null;
             const inacbgCode = String(row['Kode INA-CBG'] || row['inacbg'] || "");
             const claimAmount = parseFloat(row['Biaya Klaim'] || row['tarif_inacbg'] || "0");
 
-            await prisma.$transaction(async (tx) => {
-                const patientCase = await tx.patientCase.upsert({
-                    where: { sepNumber },
-                    update: {
-                        patientName,
-                        rmNo,
-                        admissionDate,
-                        dischargeDate,
-                    },
-                    create: {
-                        sepNumber,
-                        patientName,
-                        rmNo,
-                        admissionDate,
-                        dischargeDate
-                    }
-                });
+            // Upsert patient case by SEP number
+            const { data: existingCase } = await supabaseAdmin
+                .from('patient_cases')
+                .select('id')
+                .eq('sep_number', sepNumber)
+                .maybeSingle();
 
-                // Check if claim exists for this case
-                const existingClaim = await tx.claimCase.findFirst({
-                    where: { caseId: patientCase.id }
-                });
+            let caseId: string;
 
-                if (existingClaim) {
-                    await tx.claimCase.update({
-                        where: { id: existingClaim.id },
-                        data: {
-                            inacbgCode,
-                            claimAmount,
-                            status: "PENDING"
-                        }
-                    });
-                } else {
-                    await tx.claimCase.create({
-                        data: {
-                            caseId: patientCase.id,
-                            inacbgCode,
-                            claimAmount,
-                            status: "PENDING"
-                        }
-                    });
+            if (existingCase) {
+                // Update existing
+                await supabaseAdmin
+                    .from('patient_cases')
+                    .update({
+                        patient_name: patientName,
+                        rm_no: rmNo,
+                        admission_date: admissionDate,
+                        discharge_date: dischargeDate
+                    })
+                    .eq('id', existingCase.id);
+                caseId = existingCase.id;
+            } else {
+                // Insert new
+                const { data: newCase, error } = await supabaseAdmin
+                    .from('patient_cases')
+                    .insert({
+                        sep_number: sepNumber,
+                        patient_name: patientName,
+                        rm_no: rmNo,
+                        admission_date: admissionDate,
+                        discharge_date: dischargeDate
+                    })
+                    .select('id')
+                    .single();
+
+                if (error) {
+                    console.error("Insert patient case error:", error);
+                    skippedCount++;
+                    continue;
                 }
-            });
+                caseId = newCase.id;
+            }
+
+            // Check if claim exists for this case
+            const { data: existingClaim } = await supabaseAdmin
+                .from('claim_cases')
+                .select('id')
+                .eq('case_id', caseId)
+                .maybeSingle();
+
+            if (existingClaim) {
+                await supabaseAdmin
+                    .from('claim_cases')
+                    .update({
+                        inacbg_code: inacbgCode,
+                        claim_amount: claimAmount,
+                        status: "PENDING"
+                    })
+                    .eq('id', existingClaim.id);
+            } else {
+                await supabaseAdmin
+                    .from('claim_cases')
+                    .insert({
+                        case_id: caseId,
+                        inacbg_code: inacbgCode,
+                        claim_amount: claimAmount,
+                        status: "PENDING"
+                    });
+            }
 
             importedCount++;
         }

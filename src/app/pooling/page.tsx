@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { useState, useEffect, useMemo } from "react";
+import { ChartWrapper } from "@/components/ui/chart-wrapper";
 
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,6 @@ export default function PoolingPage() {
     const now = new Date();
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
-    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showConfig, setShowConfig] = useState(false);
@@ -86,7 +84,7 @@ export default function PoolingPage() {
         }
     };
 
-    useEffect(() => { setMounted(true); fetchData(); }, [month, year]);
+    useEffect(() => { fetchData(); }, [month, year]);
 
     const handleSaveConfig = async () => {
         setSaving(true);
@@ -119,19 +117,19 @@ export default function PoolingPage() {
     const byUnit = data?.byUnit ?? [];
     const totalPool = data?.totalMedicalPool ?? previewPool;
 
-    const donutSeries = byUnit.map((u: any) => u.pool);
-    const donutLabels = byUnit.map((u: any) => u.name);
+    const donutSeries = useMemo(() => byUnit.map((u: any) => u.pool), [byUnit]);
+    const donutLabels = useMemo(() => byUnit.map((u: any) => u.name), [byUnit]);
 
-    const donutOptions: any = {
-        chart: { type: "donut", animations: { enabled: true }, background: "transparent" },
+    const donutOptions = useMemo(() => ({
+        chart: { type: "donut" as const, animations: { enabled: false }, background: "transparent" },
         labels: donutLabels.length ? donutLabels : ["Belum ada data"],
         colors: ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4"],
-        legend: { position: "bottom", fontSize: "11px" },
+        legend: { position: "bottom" as const, fontSize: "11px" },
         plotOptions: { pie: { donut: { size: "65%", labels: { show: true, total: { show: true, label: "Total Pool", formatter: () => fmt(totalPool) } } } } },
         dataLabels: { enabled: false },
         stroke: { width: 2, colors: ["#fff"] },
         tooltip: { y: { formatter: (v: number) => fmt(v) } },
-    };
+    }), [donutLabels, totalPool]);
 
     const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
 
@@ -326,14 +324,12 @@ export default function PoolingPage() {
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                         <h2 className="text-base font-bold text-slate-900 mb-1">Distribusi Pool per Unit</h2>
                         <p className="text-xs text-slate-400 font-medium mb-4">Proporsi keterlibatan masing-masing unit.</p>
-                        {mounted && (
-                            <ReactApexChart
-                                options={donutOptions}
-                                series={donutSeries.length ? donutSeries : [1]}
-                                type="donut"
-                                height={280}
-                            />
-                        )}
+                        <ChartWrapper
+                            options={donutOptions}
+                            series={donutSeries.length ? donutSeries : [1]}
+                            type="donut"
+                            height={280}
+                        />
                     </div>
 
                     <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

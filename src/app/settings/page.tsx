@@ -10,15 +10,21 @@ import {
     Settings, Save, Building2, Globe, Shield, Bell, Palette, Loader2, CheckCircle2, Calculator
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getSettings, updateSettings } from "./actions";
+import { getSettings, updateSettings, uploadLogo, AppSettings } from "./actions";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [settings, setSettings] = useState({
+    const [settings, setSettings] = useState<AppSettings>({
         hospitalName: "",
+        govtName: "",
         province: "",
+        address: "",
+        phone: "",
+        email: "",
+        footerText: "",
+        logoUrl: "",
         poolPercent: 0,
         p1Weight: 0,
         p2Weight: 0,
@@ -48,6 +54,8 @@ export default function SettingsPage() {
         const result = await updateSettings(settings);
         if (result.success) {
             toast.success("Pengaturan berhasil disimpan");
+            // Trigger branding update across the app
+            window.dispatchEvent(new Event("brandingUpdated"));
         } else {
             toast.error(result.error);
         }
@@ -97,6 +105,15 @@ export default function SettingsPage() {
                         </CardHeader>
                         <CardContent className="px-8 pb-8 space-y-6">
                             <div className="space-y-2">
+                                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Pemerintah (Pemilik)</Label>
+                                <Input
+                                    value={settings.govtName}
+                                    onChange={(e) => setSettings({ ...settings, govtName: e.target.value })}
+                                    placeholder="Contoh: Pemerintah Kabupaten Lamongan"
+                                    className="bg-slate-50/50 border-slate-100 h-12 rounded-xl font-bold focus-visible:ring-blue-500"
+                                />
+                            </div>
+                            <div className="space-y-2">
                                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Rumah Sakit</Label>
                                 <Input
                                     value={settings.hospitalName}
@@ -105,12 +122,44 @@ export default function SettingsPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Provinsi / Wilayah</Label>
+                                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Teks Footer (Copyright)</Label>
                                 <Input
-                                    value={settings.province}
-                                    onChange={(e) => setSettings({ ...settings, province: e.target.value })}
+                                    value={settings.footerText}
+                                    onChange={(e) => setSettings({ ...settings, footerText: e.target.value })}
+                                    placeholder="Teks yang muncul di bagian bawah aplikasi"
                                     className="bg-slate-50/50 border-slate-100 h-12 rounded-xl font-bold focus-visible:ring-blue-500"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Logo RSUD</Label>
+                                <div className="flex gap-4 items-center">
+                                    {settings.logoUrl && (
+                                        <div className="h-16 w-16 rounded-xl border border-slate-100 p-2 bg-slate-50 shrink-0">
+                                            <img src={settings.logoUrl} alt="Logo" className="h-full w-full object-contain" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1">
+                                        <Input
+                                            type="file"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const formData = new FormData();
+                                                    formData.append("logo", file);
+                                                    const res = await uploadLogo(formData);
+                                                    if (res.success && res.url) {
+                                                        setSettings({ ...settings, logoUrl: res.url });
+                                                        toast.success("Logo berhasil diunggah");
+                                                        window.dispatchEvent(new Event("brandingUpdated"));
+                                                    } else {
+                                                        toast.error(res.error || "Gagal mengunggah logo");
+                                                    }
+                                                }
+                                            }}
+                                            className="bg-slate-50/50 border-slate-100 rounded-xl focus-visible:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">

@@ -160,8 +160,9 @@ export default function TariffMasterPage() {
         if (!importFile) return;
         setImporting(true);
         try {
-            const buf = await importFile.arrayBuffer();
-            const result = await importTariffs(Array.from(new Uint8Array(buf)));
+            const formData = new FormData();
+            formData.append("file", importFile);
+            const result = await importTariffs(formData);
             if (result.success) {
                 toast.success(`${result.count} tarif berhasil diimport`);
                 setImportOpen(false); setImportFile(null); setImportPreview([]);
@@ -188,19 +189,19 @@ export default function TariffMasterPage() {
                         <p className="text-slate-500 mt-1">Kelola data tarif tindakan, pembagian jasa sarana, dan jasa pelayanan.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="bg-white border-slate-200 text-slate-600 hover:bg-slate-50" onClick={downloadTemplate}>
-                            <Download className="h-4 w-4 mr-2" /> Unduh Template
+                        <Button variant="outline" size="sm" className="hidden md:flex bg-white border-slate-200 text-slate-600 hover:bg-slate-50" onClick={downloadTemplate}>
+                            <Download className="h-4 w-4 mr-2" /> Template
                         </Button>
-                        <Button variant="outline" size="sm" className="bg-white border-slate-200 text-slate-600 hover:bg-slate-50" onClick={() => setImportOpen(true)}>
-                            <Upload className="h-4 w-4 mr-2" /> Import CSV
+                        <Button variant="outline" size="sm" className="bg-white border-slate-200 text-slate-600 hover:bg-slate-50 flex-1 md:flex-initial" onClick={() => setImportOpen(true)}>
+                            <Upload className="h-4 w-4 mr-2" /> Import
                         </Button>
-                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200" onClick={openAdd}>
-                            <Plus className="h-4 w-4 mr-2" /> Tambah Tarif
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 flex-1 md:flex-initial" onClick={openAdd}>
+                            <Plus className="h-4 w-4 mr-2" /> Tambah
                         </Button>
                     </div>
                 </div>
 
-                <Card className="border border-slate-200 shadow-sm bg-white">
+                <Card className="border border-slate-200 shadow-sm bg-white overflow-hidden">
                     <CardHeader className="pb-3 px-6 bg-white border-b border-slate-100">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -214,54 +215,56 @@ export default function TariffMasterPage() {
                                 <Loader2 className="h-8 w-8 text-emerald-600 animate-spin" />
                             </div>
                         ) : (
-                            <Table>
-                                <TableHeader className="bg-slate-50 border-b border-slate-100">
-                                    <TableRow>
-                                        <TableHead className="px-6 py-4 font-bold text-slate-600">Kode & Nama Tindakan</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Kategori</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Jasa Sarana</TableHead>
-                                        <TableHead className="font-bold text-slate-600 text-blue-600">Jaspel Medis</TableHead>
-                                        <TableHead className="font-bold text-slate-600">Jaspel Non-Medis</TableHead>
-                                        <TableHead className="font-bold text-slate-600 bg-slate-100/50">Total Tarif</TableHead>
-                                        <TableHead className="font-bold text-slate-600 text-center">% Medis</TableHead>
-                                        <TableHead className="text-center px-6 font-bold text-slate-600">Aksi</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filtered.map(t => (
-                                        <TableRow key={t.id} className="hover:bg-emerald-50/30 border-b border-slate-50 bg-white">
-                                            <TableCell className="px-6">
-                                                <p className="font-bold text-slate-900">{t.name}</p>
-                                                <p className="font-mono text-[10px] text-slate-400 font-bold uppercase">{t.code}</p>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 font-bold text-[10px]">
-                                                    {t.category}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm font-medium text-slate-600">{fmt(t.jasa_sarana)}</TableCell>
-                                            <TableCell className="text-sm font-bold text-blue-600">{fmt(t.jasa_pelayanan_medis)}</TableCell>
-                                            <TableCell className="text-sm font-medium text-slate-600">{fmt(t.jasa_pelayanan_non_medis)}</TableCell>
-                                            <TableCell className="text-sm font-bold text-slate-900 bg-slate-50/50">{fmt(t.base_amount)}</TableCell>
-                                            <TableCell className="text-center font-mono text-xs font-bold text-emerald-600">
-                                                {pct(t.jaspel_pct)}
-                                            </TableCell>
-                                            <TableCell className="text-center px-6">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <button onClick={() => openEdit(t)}
-                                                        className="h-8 w-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors">
-                                                        <Edit className="h-3.5 w-3.5 text-emerald-600" />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(t.id)}
-                                                        className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
-                                                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                                    </button>
-                                                </div>
-                                            </TableCell>
+                            <div className="table-container">
+                                <Table>
+                                    <TableHeader className="bg-slate-50 border-b border-slate-100">
+                                        <TableRow>
+                                            <TableHead className="px-6 py-4 font-bold text-slate-600">Nama & Kode</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Kategori</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Jasa Sarana</TableHead>
+                                            <TableHead className="font-bold text-slate-600 text-blue-600">Jaspel Medis</TableHead>
+                                            <TableHead className="font-bold text-slate-600 hide-on-mobile">Non-Medis</TableHead>
+                                            <TableHead className="font-bold text-slate-600 bg-slate-100/50">Total</TableHead>
+                                            <TableHead className="font-bold text-slate-600 text-center hide-on-mobile">% Medis</TableHead>
+                                            <TableHead className="text-center px-6 font-bold text-slate-600">Aksi</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filtered.map(t => (
+                                            <TableRow key={t.id} className="hover:bg-emerald-50/30 border-b border-slate-50 bg-white">
+                                                <TableCell className="px-6 py-3">
+                                                    <p className="font-bold text-slate-900 leading-tight">{t.name}</p>
+                                                    <p className="font-mono text-[10px] text-slate-400 font-bold uppercase">{t.code}</p>
+                                                </TableCell>
+                                                <TableCell className="hide-on-mobile">
+                                                    <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-100 font-bold text-[10px]">
+                                                        {t.category}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-sm font-medium text-slate-600 hide-on-mobile">{fmt(t.jasa_sarana)}</TableCell>
+                                                <TableCell className="text-sm font-bold text-blue-600">{fmt(t.jasa_pelayanan_medis)}</TableCell>
+                                                <TableCell className="text-sm font-medium text-slate-600 hide-on-mobile">{fmt(t.jasa_pelayanan_non_medis)}</TableCell>
+                                                <TableCell className="text-sm font-bold text-slate-900 bg-slate-50/50">{fmt(t.base_amount)}</TableCell>
+                                                <TableCell className="text-center font-mono text-xs font-bold text-emerald-600 hide-on-mobile">
+                                                    {pct(t.jaspel_pct)}
+                                                </TableCell>
+                                                <TableCell className="text-center px-6">
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <button onClick={() => openEdit(t)}
+                                                            className="h-8 w-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                                                            <Edit className="h-3.5 w-3.5 text-emerald-600" />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(t.id)}
+                                                            className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
+                                                            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                                        </button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         )}
                         {!loading && filtered.length === 0 && (
                             <div className="flex flex-col items-center justify-center p-20 text-center bg-white">

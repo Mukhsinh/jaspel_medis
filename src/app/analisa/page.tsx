@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
+import { ChartWrapper } from "@/components/ui/chart-wrapper";
 import {
     Table,
     TableBody,
@@ -43,8 +45,12 @@ export default function BusinessAnalysisPage() {
         { diagnosis: "D-03-9 (Tumor Ganas)", claim: 45000000, cost: 38000000, margin: 7000000, status: "Positive" },
     ];
 
-    const chartOptions: any = {
-        chart: { type: 'bar', toolbar: { show: false } },
+    const chartOptions = useMemo(() => ({
+        chart: {
+            type: "bar" as const,
+            toolbar: { show: false },
+            animations: { enabled: false },
+        },
         plotOptions: {
             bar: {
                 horizontal: false,
@@ -68,13 +74,13 @@ export default function BusinessAnalysisPage() {
             y: { formatter: (val: number) => `Rp ${val} Miliar` }
         },
         grid: { borderColor: '#f1f5f9' },
-        legend: { position: 'top', horizontalAlign: 'right' }
-    };
+        legend: { position: 'top' as const, horizontalAlign: 'right' as const }
+    }), []);
 
-    const chartSeries = [
+    const chartSeries = useMemo(() => [
         { name: 'Rata-rata Klaim', data: [44, 55, 41, 67, 22, 43] },
         { name: 'Rata-rata Biaya', data: [36, 61, 38, 58, 28, 35] }
-    ];
+    ], []);
 
     return (
         <DashboardLayout>

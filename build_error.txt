@@ -1,0 +1,41 @@
+
+> jaspel-medis@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.2.6 (Turbopack)
+ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Environments: .env
+
+  Creating an optimized production build ...
+Error: Cannot apply unknown utility class `shadow-[0_8px_32px_0_rgba(31,`
+    [at onInvalidCandidate (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:21:1511)]
+    [at Ne (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:16:38457)]
+    [at D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:21:355]
+    [at zr (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:3:1733)]
+    [at I (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:3:1377)]
+    [at Ee (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:21:172)]
+    [at vn (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:38:294)]
+    [at async kn (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\tailwindcss\dist\lib.js:38:631)]
+    [at async Xr (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\@tailwindcss\node\dist\index.js:10:3415)]
+    [at async E (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\@tailwindcss\postcss\dist\index.js:10:3983)]
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/globals.css
+Error evaluating Node.js code
+CssSyntaxError: tailwindcss: D:\Aplikasi Antigravity\JASPEL MEDIS\src\app\globals.css:1:1: Cannot apply unknown utility class `shadow-[0_8px_32px_0_rgba(31,`
+    at Input.error (node_modules/postcss/lib/input.js:135:16) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\node_modules_13sb.px._.js:4692:22]
+    at error (node_modules/postcss/lib/node.js:146:32) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\node_modules_13sb.px._.js:954:38]
+    [at Object.Once (D:\Aplikasi Antigravity\JASPEL MEDIS\node_modules\@tailwindcss\postcss\dist\index.js:10:6917)]
+    at async LazyResult.runAsync (node_modules/postcss/lib/lazy-result.js:293:11) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\node_modules_13sb.px._.js:6264:21]
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\[root-of-the-server]__0d-m0h0._.js:146:36]
+    at async run (turbopack:///[turbopack-node]/child_process/evaluate.ts:89:23) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\[root-of-the-server]__0ubbtyl._.js:443:31]
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.tsx [Server Component]
+
+
+    at async transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:34) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\[root-of-the-server]__0d-m0h0._.js:146:36])
+    at async run (turbopack:///[turbopack-node]/child_process/evaluate.ts:89:23) [D:\Aplikasi Antigravity\JASPEL MEDIS\.next\build\chunks\[root-of-the-server]__0ubbtyl._.js:443:31])

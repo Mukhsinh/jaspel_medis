@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
-const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
+import { useState, useEffect, useMemo } from "react";
+import { ChartWrapper } from "@/components/ui/chart-wrapper";
 
 import DashboardLayout from "@/components/layout/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,6 @@ const statusMap: Record<string, { label: string; cls: string }> = {
 };
 
 export default function LaporanPage() {
-    const [mounted, setMounted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +39,7 @@ export default function LaporanPage() {
         setLoading(false);
     };
 
-    useEffect(() => { setMounted(true); fetchData(); }, []);
+    useEffect(() => { fetchData(); }, []);
 
     const handleGenerate = async (periodId: string) => {
         const result = await generateReport(periodId);
@@ -59,8 +57,8 @@ export default function LaporanPage() {
 
     const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
 
-    const trendOptions: any = {
-        chart: { type: "bar", toolbar: { show: false } },
+    const trendOptions = useMemo(() => ({
+        chart: { type: "bar", toolbar: { show: false }, animations: { enabled: false } },
         colors: ["#3b82f6", "#10b981"],
         plotOptions: { bar: { borderRadius: 6, columnWidth: "45%", dataLabels: { position: "top" } } },
         dataLabels: { enabled: false },
@@ -68,9 +66,9 @@ export default function LaporanPage() {
         yaxis: { labels: { formatter: (v: number) => fmt(v) } },
         grid: { borderColor: "#f1f5f9", strokeDashArray: 4 },
         tooltip: { y: { formatter: (v: number) => fmt(v) } },
-    };
+    }), [periods]);
 
-    const trendSeries = [{ name: "Total Insentif", data: periods.map((p: any) => p.totalIncentive) }];
+    const trendSeries = useMemo(() => [{ name: "Total Insentif", data: periods.map((p: any) => p.totalIncentive) }], [periods]);
 
     const totalAll = periods.reduce((a: number, p: any) => a + p.totalIncentive, 0);
     const finalized = periods.filter((p: any) => p.status === "FINAL_LOCKED" || p.status === "APPROVED_DIREKTUR").length;
@@ -127,9 +125,7 @@ export default function LaporanPage() {
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                         <h2 className="text-base font-bold text-slate-900 mb-1">Tren Distribusi</h2>
                         <p className="text-sm text-slate-400 font-medium mb-4">Perbandingan total insensif per bulan.</p>
-                        {mounted && (
-                            <ReactApexChart options={trendOptions} series={trendSeries} type="bar" height={260} />
-                        )}
+                        <ChartWrapper options={trendOptions} series={trendSeries} type="bar" height={260} />
                     </div>
 
                     {/* Table */}

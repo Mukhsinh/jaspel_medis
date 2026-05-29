@@ -1,10 +1,38 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const globalForSupabase = globalThis as unknown as {
+    supabase: SupabaseClient | undefined;
+    supabaseAdmin: SupabaseClient | undefined;
+};
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabase() {
+    if (!globalForSupabase.supabase) {
+        globalForSupabase.supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL || "https://omlbijupllrglmebbqnn.supabase.co",
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy"
+        );
+    }
+    return globalForSupabase.supabase;
+}
 
-// Server-side client with service role (for server actions only)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+export function getSupabaseAdmin() {
+    if (!globalForSupabase.supabaseAdmin) {
+        globalForSupabase.supabaseAdmin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL || "https://omlbijupllrglmebbqnn.supabase.co",
+            process.env.SUPABASE_SERVICE_ROLE_KEY || "dummy"
+        );
+    }
+    return globalForSupabase.supabaseAdmin;
+}
+
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+    get(target, prop, receiver) {
+        return Reflect.get(getSupabase(), prop, receiver);
+    }
+});
+
+export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
+    get(target, prop, receiver) {
+        return Reflect.get(getSupabaseAdmin(), prop, receiver);
+    }
+});

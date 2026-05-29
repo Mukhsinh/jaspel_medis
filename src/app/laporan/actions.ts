@@ -1,43 +1,46 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
+import { supabaseAdmin } from "@/lib/supabase"
 
 export async function getReportsData() {
     try {
-        const periods = await prisma.payrollPeriod.findMany({
-            orderBy: [
-                { year: 'desc' },
-                { month: 'desc' }
-            ],
-            include: {
-                _count: {
-                    select: { scores: true, incentiveSlips: true }
-                }
-            }
-        })
+        const { data: periods, error } = await supabaseAdmin
+            .from('payroll_periods')
+            .select('*')
+            .order('year', { ascending: false })
+            .order('month', { ascending: false });
 
-        const formattedReports = periods.map(p => ({
-            id: p.id.substring(0, 8).toUpperCase(),
-            title: `Laporan Distribusi Jaspel - ${getMonthName(p.month)} ${p.year}`,
-            type: "Distribusi",
-            date: p.updatedAt.toLocaleDateString('id-ID'),
-            status: p.status,
-            incentiveCount: p._count.incentiveSlips
-        }))
+        if (error) throw error;
 
-        // Mock trend for now but can be derived from totalIncentive
-        const trendData = periods.slice(0, 5).reverse().map(p => ({
+        // Get counts for each period
+        const formattedReports = await Promise.all((periods || []).map(async (p: any) => {
+            const { count: slipCount } = await supabaseAdmin
+                .from('incentive_slips')
+                .select('id', { count: 'exact', head: true })
+                .eq('period_id', p.id);
+
+            return {
+                id: p.id.substring(0, 8).toUpperCase(),
+                title: `Laporan Distribusi Jaspel - ${getMonthName(p.month)} ${p.year}`,
+                type: "Distribusi",
+                date: new Date(p.updated_at).toLocaleDateString('id-ID'),
+                status: p.status,
+                incentiveCount: slipCount || 0
+            };
+        }));
+
+        const trendData = (periods || []).slice(0, 5).reverse().map((p: any) => ({
             month: getMonthName(p.month).substring(0, 3),
-            amount: Number(p.totalIncentive) / 1000000
-        }))
+            amount: Number(p.total_incentive) / 1000000
+        }));
 
         return {
             success: true,
             data: {
                 reports: formattedReports,
                 trend: {
-                    categories: trendData.map(t => t.month),
-                    series: [{ name: "Total Distribusi", data: trendData.map(t => t.amount) }]
+                    categories: trendData.map((t: any) => t.month),
+                    series: [{ name: "Total Distribusi", data: trendData.map((t: any) => t.amount) }]
                 }
             }
         }
