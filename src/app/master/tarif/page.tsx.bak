@@ -1,0 +1,181 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import DashboardLayout from "@/components/layout/dashboard-layout";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+    Plus, Search, Edit, Trash2, Download, Stethoscope, Loader2,
+    Calculator, Save, Info, Upload, FileSpreadsheet, X
+} from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getTariffs, createTariff, updateTariff, deleteTariff, importTariffs } from "./actions";
+import { toast } from "sonner";
+
+interface Tariff {
+    id: string;
+    code: string;
+    name: string;
+    category: string;
+    base_amount: number;
+    jasa_pelayanan_medis: number;
+    jasa_pelayanan_non_medis: number;
+    jasa_pelayanan: number;
+    jasa_sarana: number;
+    jaspel_pct: number;
+    is_active: boolean;
+}
+
+const CATEGORIES = ["Rawat Jalan", "Rawat Inap", "Operatif", "Penunjang", "Cathlab"];
+const fmt = (v: number) => `Rp ${Math.round(v ?? 0).toLocaleString("id-ID")}`;
+const pct = (v: number) => `${(v ?? 0).toFixed(1)}%`;
+
+export default function TariffMasterPage() {
+    const [tariffs, setTariffs] = useState<Tariff[]>([]);
+    const [search, setSearch] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
+    const [editing, setEditing] = useState<Tariff | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importPreview, setImportPreview] = useState<string[][]>([]);
+    const [importing, setImporting] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    const [form, setForm] = useState({
+        code: "", name: "", category: "Rawat Jalan",
+        jasa_pelayanan_medis: 0,
+        jasa_pelayanan_non_medis: 0,
+        jasa_sarana: 0,
+        is_active: true,
+    });
+
+    // Kalkulasi otomatis
+    const total_jasa_pelayanan = form.jasa_pelayanan_medis + form.jasa_pelayanan_non_medis;
+    const tarif_total = total_jasa_pelayanan + form.jasa_sarana;
+    const jaspel_medis_pct = tarif_total > 0 ? (form.jasa_pelayanan_medis / tarif_total) * 100 : 0;
+
+    const load = async () => {
+        setLoading(true);
+        const r = await getTariffs();
+        if (r.success) setTariffs(r.data as Tariff[]);
+        else toast.error(r.error ?? "Gagal memuat data");
+        setLoading(false);
+    };
+
+    useEffect(() => { load(); }, []);
+
+    const openAdd = () => {
+        setEditing(null);
+        setForm({ code: "", name: "", category: "Rawat Jalan", jasa_pelayanan_medis: 0, jasa_pelayanan_non_medis: 0, jasa_sarana: 0, is_active: true });
+        setDialogOpen(true);
+    };
+
+    const openEdit = (t: Tariff) => {
+        setEditing(t);
+        setForm({
+            code: t.code, name: t.name, category: t.category,
+            jasa_pelayanan_medis: t.jasa_pelayanan_medis ?? 0,
+            jasa_pelayanan_non_medis: t.jasa_pelayanan_non_medis ?? 0,
+            jasa_sarana: t.jasa_sarana ?? 0,
+            is_active: t.is_active,
+        });
+        setDialogOpen(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSubmitting(true);
+        const payload = {
+            code: form.code, name: form.name, category: form.category,
+            base_amount: tarif_total,
+            jasa_pelayanan_medis: form.jasa_pelayanan_medis,
+            jasa_pelayanan_non_medis: form.jasa_pelayanan_non_medis,
+            jasa_pelayanan: total_jasa_pelayanan,
+            jasa_sarana: form.jasa_sarana,
+            jaspel_pct: jaspel_medis_pct,
+            is_active: form.is_active,
+        };
+        const r = editing ? await updateTariff(editing.id, payload) : await createTariff(payload);
+        if (r.success) {
+            toast.success(editing ? "Tarif diperbarui" : "Tarif ditambahkan");
+            setDialogOpen(false); load();
+        } else toast.error(r.error ?? "Gagal menyimpan");
+        setSubmitting(false);
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm("Hapus tarif ini?")) return;
+        const r = await deleteTariff(id);
+        if (r.success) { toast.success("Tarif dihapus"); load(); }
+        else toast.error(r.error ?? "Gagal menghapus");
+    };
+
+    const downloadTemplate = () => {
+        const csv = [
+            "kode,nama_tindakan,kategori,jasa_pelayanan_medis,jasa_pelayanan_non_medis,jasa_sarana",
+            "T-RJ-001,Konsultasi Dokter Spesialis,Rawat Jalan,90000,30000,30000",
+            "T-RI-001,Visite Dokter Spesialis,Rawat Inap,120000,40000,40000",
+            "T-OP-001,Operasi Katarak,Operatif,2500000,750000,1750000",
+            "T-PJ-001,Laboratorium Darah Rutin,Penunjang,50000,20000,30000",
+            "T-CL-001,Kateterisasi Jantung,Cathlab,4000000,1200000,2800000",
+        ].join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "template_tarif.csv"; a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImportFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const text = ev.target?.result as string;
+            const rows = text.trim().split("\n").slice(1).map(r => r.split(",").map(c => c.trim()));
+            setImportPreview(rows.slice(0, 5));
+        };
+        reader.readAsText(file);
+    };
+
+    const handleImport = async () => {
+        if (!importFile) return;
+        setImporting(true);
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+            const text = ev.target?.result as string;
+            const parsed = text.trim().split("\n").slice(1)
+                .map(r => r.split(",").map(c => c.trim()))
+                .filter(r => r.length >= 6 && r[0])
+                .map(r => ({
+                    code: r[0], name: r[1], category: r[2],
+                    jasa_pelayanan_medis: parseFloat(r[3]) || 0,
+                    jasa_pelayanan_non_medis: parseFloat(r[4]) || 0,
+                    jasa_sarana: parseFloat(r[5]) || 0,
+                    base_amount: (parseFloat(r[3]) || 0) + (parseFloat(r[4]) || 0) + (parseFloat(r[5]) || 0),
+                }));
+            const result = await importTariffs(parsed);
+            if (result.success) {
+                toast.success(`${result.count} tarif berhasil diimport`);
+                setImportOpen(false); setImportFile(null); setImportPreview([]);
+                if (fileRef.current) fileRef.current.value = "";
+                load();
+            } else toast.error(result.error ?? "Gagal import");
+            setImporting(false);
+        };
+        reader.readAsText(importFile);
+    };
+
+    const filtered = tariffs.filter(t =>
+        t.name.toLowerCase().includes(search.toLowerCase()) ||
+        t.code.toLowerCase().includes(search.toLowerCase())
+    );
+

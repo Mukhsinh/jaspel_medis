@@ -1,0 +1,545 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  DIREKTUR_RS
+  WAKIL_DIREKTUR
+  KABID_PELAYANAN
+  ADMIN_JASA_PELAYANAN
+  VERIFIKATOR_KEUANGAN
+  KOMITE_MEDIS
+  DOKTER
+  AUDITOR
+  READ_ONLY_INSPECTOR
+}
+
+enum DoctorType {
+  SPESIALIS
+  SUB_SPESIALIS
+  DOKTER_UMUM
+  DOKTER_GIGI
+  MITRA
+}
+
+enum EmploymentStatus {
+  PNS
+  BLUD
+  PPPK
+  MITRA
+}
+
+enum TERCategory {
+  A
+  B
+  C
+}
+
+enum IncentiveStatus {
+  DRAFT
+  VERIFIED
+  APPROVED_KABID
+  APPROVED_DIREKTUR
+  FINAL_LOCKED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  role      Role     @default(DOKTER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  doctor    Doctor?
+
+  @@map("users")
+}
+
+model Doctor {
+  id             String           @id @default(uuid())
+  userId         String?          @unique
+  user           User?            @relation(fields: [userId], references: [id])
+  nip            String?          @unique
+  nik            String           @unique
+  name           String
+  title          String?
+  specialization String
+  subSpecialty   String?
+  type           DoctorType
+  status         EmploymentStatus
+  npwp           String?
+  ptkp           String           @default("TK/0")
+  terCategory    TERCategory      @default(A)
+  bank           String?
+  accountNumber  String?
+  sip            String?
+  str            String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  scores         RemunerationScore[]
+  incentiveSlips IncentiveSlip[]
+  medicalActions MedicalAction[]
+  doctorActions  DoctorAction[]
+  incentiveDistributions IncentiveDistribution[]
+
+  @@map("doctors")
+}
+
+model Unit {
+  id           String        @id @default(uuid())
+  name         String
+  installation String
+  room         String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  claims       BPJSClaim[]
+  actions      MedicalAction[]
+
+  @@map("units")
+}
+
+model Tariff {
+  id           String   @id @default(uuid())
+  name         String
+  category     String
+  fee          Decimal  @db.Decimal(18, 2)
+  isDoctorFee  Boolean  @default(true)
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("tariffs")
+}
+
+model MedicalAction {
+  id              String   @id @default(uuid())
+  claimId         String?
+  claim           BPJSClaim? @relation(fields: [claimId], references: [id])
+  doctorId        String
+  doctor          Doctor   @relation(fields: [doctorId], references: [id])
+  unitId          String
+  unit            Unit     @relation(fields: [unitId], references: [id])
+  actionType      String
+  category        String?
+  tariff          Decimal  @db.Decimal(18, 2)
+  date            DateTime
+  volume          Int      @default(1)
+  isAnesthesia    Boolean  @default(false)
+  isAsisstant     Boolean  @default(false)
+  multipleLogic   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("medical_actions")
+}
+
+model BPJSClaim {
+  id              String   @id @default(uuid())
+  rawatNo         String   @unique
+  rmNo            String
+  patientName     String
+  diagInacbg      String
+  claimValue      Decimal  @db.Decimal(18, 2)
+  saranaComponent Decimal  @db.Decimal(18, 2)
+  netRevenue      Decimal  @db.Decimal(18, 2)
+  medicalPool     Decimal  @db.Decimal(18, 2)
+  actionDate      DateTime
+  unitId          String
+  unit            Unit     @relation(fields: [unitId], references: [id])
+  actions         MedicalAction[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("bpjs_claims")
+}
+
+model RemunerationScore {
+  id               String   @id @default(uuid())
+  doctorId         String
+  doctor           Doctor   @relation(fields: [doctorId], references: [id])
+  periodId         String
+  period           PayrollPeriod @relation(fields: [periodId], references: [id])
+  p1               Decimal  @db.Decimal(18, 2) // Position
+  p2               Decimal  @db.Decimal(18, 2) // Performance (Average of indicators)
+  p3               Decimal  @db.Decimal(18, 2) // Behavior
+  totalIndex       Decimal  @db.Decimal(18, 2)
+  conversionFactor Decimal  @db.Decimal(18, 6)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  indicatorScores  RemunerationIndicatorScore[]
+
+  @@unique([doctorId, periodId])
+  @@map("remuneration_scores")
+}
+
+model RemunerationIndicator {
+  id          String   @id @default(uuid())
+  name        String
+  weight      Decimal  @db.Decimal(5, 2) @default(1.0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  measurements RemunerationMeasurement[]
+  scores      RemunerationIndicatorScore[]
+
+  @@map("remuneration_indicators")
+}
+
+model RemunerationMeasurement {
+  id          String   @id @default(uuid())
+  indicatorId String
+  indicator   RemunerationIndicator @relation(fields: [indicatorId], references: [id])
+  name        String
+  method      String   // "SKOR" | "AKTIVITAS"
+  weight      Decimal  @db.Decimal(5, 2) @default(1.0)
+  
+  // For SKOR method
+  minValue    Decimal? @db.Decimal(18, 2)
+  maxValue    Decimal? @db.Decimal(18, 2)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("remuneration_measurements")
+}
+
+model RemunerationIndicatorScore {
+  id          String   @id @default(uuid())
+  indicatorId String
+  indicator   RemunerationIndicator @relation(fields: [indicatorId], references: [id])
+  scoreId     String
+  score       RemunerationScore @relation(fields: [scoreId], references: [id])
+  value       Decimal  @db.Decimal(18, 2)
+  
+  @@unique([indicatorId, scoreId])
+  @@map("remuneration_indicator_scores")
+}
+
+// --- NEW ENTERPRISE MODELS ---
+
+model PatientCase {
+  id              String    @id @default(uuid())
+  rmNo            String
+  patientName     String
+  gender          String?
+  birthDate       DateTime?
+  sepNumber       String?   @unique
+  admissionDate   DateTime
+  dischargeDate   DateTime?
+  los             Int?      // Length of Stay
+  
+  claims          ClaimCase[]
+  actions         DoctorAction[]
+  costs           CaseCost[]
+  pathway         PathwayCompliance?
+
+  createdAt       DateTime  @default(now())
+  @@map("patient_cases")
+}
+
+model ClaimCase {
+  id              String    @id @default(uuid())
+  caseId          String
+  case            PatientCase @relation(fields: [caseId], references: [id])
+  inacbgCode      String?
+  severityLevel   Int?
+  claimAmount     Decimal?  @db.Decimal(18, 2)
+  status          String    @default("PENDING") // PENDING, FINAL, DISPUTE
+  groupingDate    DateTime?
+  
+  diagnoses       DiagnosisCase[]
+  procedures      ProcedureCase[]
+
+  createdAt       DateTime  @default(now())
+  @@map("claim_cases")
+}
+
+model DiagnosisCase {
+  id              String    @id @default(uuid())
+  claimId         String
+  claim           ClaimCase @relation(fields: [claimId], references: [id])
+  icdCode         String
+  description     String?
+  isPrimary       Boolean   @default(false)
+  
+  @@map("diagnosis_cases")
+}
+
+model ProcedureCase {
+  id              String    @id @default(uuid())
+  claimId         String
+  claim           ClaimCase @relation(fields: [claimId], references: [id])
+  icd9Code        String
+  description     String?
+  
+  @@map("procedure_cases")
+}
+
+model CaseCost {
+  id              String    @id @default(uuid())
+  caseId          String
+  case            PatientCase @relation(fields: [caseId], references: [id])
+  componentName   String    // BHP, Sarana, Alat Terpakai, dll
+  amount          Decimal   @db.Decimal(18, 2)
+  category        String    // DIRECT, INDIRECT
+  
+  @@map("case_costs")
+}
+
+model ClinicalPathway {
+  id                  String    @id @default(uuid())
+  name                String
+  inacbgCode          String    @unique @map("inacbg_code")
+  category            String    @default("RAWAT_INAP") @map("category") // RAWAT_INAP, RAWAT_JALAN
+  expectedLos         Int       @default(1) @map("expected_los")
+  
+  // Breakdown Expected Costs
+  expectedRoomCost     Decimal   @default(0) @db.Decimal(18, 2) @map("expected_room_cost")
+  expectedActionCost   Decimal   @default(0) @db.Decimal(18, 2) @map("expected_action_cost")
+  expectedIbsCost      Decimal   @default(0) @db.Decimal(18, 2) @map("expected_ibs_cost")
+  expectedPharmacyCost Decimal   @default(0) @db.Decimal(18, 2) @map("expected_pharmacy_cost")
+  expectedLabCost      Decimal   @default(0) @db.Decimal(18, 2) @map("expected_lab_cost")
+  expectedRadCost      Decimal   @default(0) @db.Decimal(18, 2) @map("expected_rad_cost")
+  expectedRehabCost    Decimal   @default(0) @db.Decimal(18, 2) @map("expected_rehab_cost")
+  expectedOtherCost    Decimal   @default(0) @db.Decimal(18, 2) @map("expected_other_cost")
+  
+  totalExpectedCost    Decimal   @default(0) @db.Decimal(18, 2) @map("expected_cost")
+  
+  rules           PathwayRule[]
+  compliances     PathwayCompliance[]
+  
+  @@map("clinical_pathways")
+}
+
+model PathwayRule {
+  id              String    @id @default(uuid())
+  pathwayId       String
+  pathway         ClinicalPathway @relation(fields: [pathwayId], references: [id])
+  description     String
+  isRequired      Boolean   @default(true)
+  
+  @@map("pathway_rules")
+}
+
+model PathwayCompliance {
+  id              String    @id @default(uuid())
+  caseId          String    @unique
+  case            PatientCase @relation(fields: [caseId], references: [id])
+  pathwayId       String
+  pathway         ClinicalPathway @relation(fields: [pathwayId], references: [id])
+  complianceScore Decimal   @db.Decimal(5, 2)
+  notes           String?
+  
+  @@map("pathway_compliances")
+}
+
+model DoctorAction {
+  id              String    @id @default(uuid())
+  caseId          String
+  case            PatientCase @relation(fields: [caseId], references: [id])
+  doctorId        String
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  description     String
+  rvuWeight       Decimal     @db.Decimal(5, 2)
+  actionDate      DateTime
+  
+  @@map("doctor_actions")
+}
+
+model IncentivePool {
+  id              String    @id @default(uuid())
+  periodId        String
+  period          PayrollPeriod @relation(fields: [periodId], references: [id])
+  totalClaim      Decimal   @db.Decimal(18, 2)
+  totalRealCost   Decimal   @db.Decimal(18, 2)
+  reserveAmount   Decimal   @db.Decimal(18, 2)
+  aipAmount       Decimal   @db.Decimal(18, 2) // Available Incentive Pool
+  mcAmount        Decimal   @db.Decimal(18, 2) // Medical Ceiling (17%)
+  finalPool       Decimal   @db.Decimal(18, 2)
+  
+  distributions   IncentiveDistribution[]
+  
+  @@map("incentive_pools")
+}
+
+model IncentiveDistribution {
+  id              String    @id @default(uuid())
+  poolId          String
+  pool            IncentivePool @relation(fields: [poolId], references: [id])
+  doctorId        String
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  baseIncentive   Decimal     @db.Decimal(18, 2)
+  performanceScore Decimal    @db.Decimal(5, 2)
+  finalIncentive  Decimal     @db.Decimal(18, 2)
+  
+  @@map("incentive_distributions")
+}
+
+model ApprovalWorkflow {
+  id              String    @id @default(uuid())
+  recordId        String
+  module          String    // "CLAIM", "POOL", "PAYROLL"
+  status          String
+  approverId      String
+  notes           String?
+  createdAt       DateTime  @default(now())
+  
+  @@map("approval_workflows")
+}
+
+
+model PoolingConfig {
+  id               String   @id @default(uuid())
+  month            Int
+  year             Int
+  totalRevenue     Decimal  @db.Decimal(18, 2)
+  incentivePct     Decimal  @db.Decimal(18, 2)
+  totalSarana      Decimal  @db.Decimal(18, 2)
+  totalMedicalPool Decimal  @db.Decimal(18, 2)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([month, year])
+  @@map("pooling_configs")
+}
+
+model PayrollPeriod {
+  id              String          @id @default(uuid())
+  month           Int
+  year            Int
+  status          IncentiveStatus @default(DRAFT)
+  totalIncentive  Decimal         @db.Decimal(18, 2)
+  conversionFactor Decimal         @db.Decimal(18, 6)
+  isLocked        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  scores          RemunerationScore[]
+  incentiveSlips  IncentiveSlip[]
+  incentivePools  IncentivePool[]
+  conversionLogs  ConversionLog[]
+
+  @@unique([month, year])
+  @@map("payroll_periods")
+}
+
+model IncentiveSlip {
+  id              String        @id @default(uuid())
+  doctorId        String
+  doctor          Doctor        @relation(fields: [doctorId], references: [id])
+  periodId        String
+  period          PayrollPeriod @relation(fields: [periodId], references: [id])
+  bruto           Decimal       @db.Decimal(18, 2)
+  taxRate         Decimal       @db.Decimal(18, 4)
+  pph21           Decimal       @db.Decimal(18, 2)
+  netto           Decimal       @db.Decimal(18, 2)
+  p1Score         Decimal       @db.Decimal(18, 2)
+  p2Score         Decimal       @db.Decimal(18, 2)
+  p3Score         Decimal       @db.Decimal(18, 2)
+  totalIndex      Decimal       @db.Decimal(18, 2)
+  status          IncentiveStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  adjustments     IncentiveAdjustment[]
+
+  @@unique([doctorId, periodId])
+  @@map("incentive_slips")
+}
+
+model ConversionLog {
+  id              String    @id @default(uuid())
+  periodId        String
+  period          PayrollPeriod @relation(fields: [periodId], references: [id])
+  oldFactor       Decimal   @db.Decimal(18, 6)
+  newFactor       Decimal   @db.Decimal(18, 6)
+  reason          String?
+  changedById     String
+  createdAt       DateTime  @default(now())
+
+  @@map("conversion_logs")
+}
+
+model IncentiveAdjustment {
+  id              String    @id @default(uuid())
+  slipId          String
+  slip            IncentiveSlip @relation(fields: [slipId], references: [id])
+  type            String    // "ADDITION", "DEDUCTION"
+  amount          Decimal   @db.Decimal(18, 2)
+  reason          String
+  approvedBy      String?
+  createdAt       DateTime  @default(now())
+
+  @@map("incentive_adjustments")
+}
+
+model TaxTERRate {
+  id          String      @id @default(uuid())
+  category    TERCategory
+  minBruto    Decimal     @db.Decimal(18, 2)
+  maxBruto    Decimal     @db.Decimal(18, 2)
+  rate        Decimal     @db.Decimal(18, 4)
+  createdAt   DateTime    @default(now())
+
+  @@map("tax_ter_rates")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  table     String?
+  recordId  String?
+  oldData   Json?
+  newData   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model RemunerationConfig {
+  id               String   @id @default(uuid())
+  p1_weight        Decimal  @db.Decimal(5, 2)
+  p2_weight        Decimal  @db.Decimal(5, 2)
+  p3_weight        Decimal  @db.Decimal(5, 2)
+  p1_education     Decimal  @db.Decimal(5, 2)
+  p1_position      Decimal  @db.Decimal(5, 2)
+  p1_competency    Decimal  @db.Decimal(5, 2)
+  p1_certification Decimal  @db.Decimal(5, 2)
+  p2_volume        Decimal  @db.Decimal(5, 2)
+  p2_productivity  Decimal  @db.Decimal(5, 2)
+  p2_logbook       Decimal  @db.Decimal(5, 2)
+  p3_attendance    Decimal  @db.Decimal(5, 2)
+  p3_discipline    Decimal  @db.Decimal(5, 2)
+  p3_managerial    Decimal  @db.Decimal(5, 2)
+  p3_strategic     Decimal  @db.Decimal(5, 2)
+  conversion_base  Decimal  @db.Decimal(5, 2)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("remuneration_configs")
+}
+
+model ImportHistory {
+  id        String   @id @default(uuid())
+  filename  String
+  type      String
+  rowCount  Int
+  status    String
+  message   String?
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@map("import_histories")
+}
